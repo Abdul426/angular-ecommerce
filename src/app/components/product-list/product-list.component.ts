@@ -14,6 +14,7 @@ export class ProductListComponent implements OnInit {
 
   currentCategoryId: number;
   currentCategoryName: string;
+  searchMode: boolean;
 
 
   constructor(private productService: ProductService, private route: ActivatedRoute) { }
@@ -29,6 +30,16 @@ export class ProductListComponent implements OnInit {
 
 
   listProducts() {
+    this.searchMode = this.route.snapshot.paramMap.has('keyword');
+    console.log(`In plistcomponent searchMode=${this.searchMode}`);
+    if (this.searchMode)
+      this.handleSearchProducts();
+    else
+      this.handleListProducts();
+  }
+
+
+  handleListProducts() {
     //Check if "id" parameter is available
     const hasCategoryId: boolean = this.route.snapshot.paramMap.has('id');
 
@@ -49,4 +60,18 @@ export class ProductListComponent implements OnInit {
     )
   }
 
+  handleSearchProducts() {
+    const theKeyword: string = this.route.snapshot.paramMap.get('keyword');
+    console.log(`theKeyword ${theKeyword}`);
+
+    //now search for the products 
+    this.productService.searchProducts(theKeyword).subscribe(
+      data => {
+        this.products = data;
+      }
+    )
+  }
 }
+
+
+
