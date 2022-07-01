@@ -1,6 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
+import { CartItem } from 'src/app/common/cart-item';
 import { Product } from 'src/app/common/product';
+import { CartService } from 'src/app/services/cart.service';
 import { ProductService } from 'src/app/services/product.service';
 
 @Component({
@@ -10,14 +12,23 @@ import { ProductService } from 'src/app/services/product.service';
 })
 export class ProductListComponent implements OnInit {
 
-  products: Product[];
+  products: Product[] = [];
 
-  currentCategoryId: number;
+  currentCategoryId: number = 1;
+  previousCategoryId: number = 1;
   currentCategoryName: string;
-  searchMode: boolean;
+  searchMode: boolean = false;
+
+  //new properties for pagination
+  thePageNumber: number = 1;
+  thePageSize: number = 5;
+  theTotalElements: number = 0;
+
+  previousKeyword: string = null;
 
 
-  constructor(private productService: ProductService, private route: ActivatedRoute) { }
+
+  constructor(private productService: ProductService, private route: ActivatedRoute, private cartService: CartService) { }
 
   //Similar to @PostConstruct method
   ngOnInit(): void {
@@ -52,26 +63,78 @@ export class ProductListComponent implements OnInit {
       this.currentCategoryName = 'Books';
     }
 
+    //Check if we hvae a diff category than previous
+    //Note: Angular will reuse a component if it is currently being viewed
+
+
+    //If we have a diff catgory id than previous
+    //then set thePageNumber back to 1
+    if (this.previousCategoryId != this.currentCategoryId) {
+      this.thePageNumber = 1;
+    }
+
+    this.previousCategoryId = this.currentCategoryId;
+    console.log(`currentCategoryId=${this.currentCategoryId}, thePageNumber=${this.thePageNumber}`)
+
     //Now get the products for the given id
-    this.productService.getProductList(this.currentCategoryId).subscribe(
-      data => {
-        this.products = data;
-      }
-    )
+    this.productService.getProductListPaginate(this.thePageNumber - 1, this.thePageSize, this.currentCategoryId).subscribe(data => {
+      this.products = data._embedded.products;
+      this.thePageNumber = data.page.number + 1;
+      this.thePageSize = data.page.size;
+      this.theTotalElements = data.page.totalElements;
+
+    });
   }
+
+  // processResult() {
+  //   return data => {
+  //     this.products = data._embedded.products;
+  //     this.thePageNumber = data.page.number + 1;
+  //     this.thePageSize = data.page.size;
+  //     this.theTotalElements = data.page.totalElements;
+
+  //   }
+  // }
 
   handleSearchProducts() {
     const theKeyword: string = this.route.snapshot.paramMap.get('keyword');
     console.log(`theKeyword ${theKeyword}`);
 
     //now search for the products 
-    this.productService.searchProducts(theKeyword).subscribe(
-      data => {
-        this.products = data;
-      }
-    )
+    // this.productService.searchProducts(theKeyword).subscribe(
+    //   data => {
+    //     this.products = data;
+    //   }
+    // )
+
+    if (this.previousKeyword != theKeyword) {
+      this.thePageNumber = 1;
+    }
+
+    this.previousKeyword = theKeyword;
+    console.log(`keyword=${this.previousKeyword}, thePageNumber=${this.thePageNumber}`)
+
+
+    this.productService.searchProductListPaginate(this.thePageNumber - 1, this.thePageSize, theKeyword).subscribe(data => {
+      this.products = data._embedded.products;
+      this.thePageNumber = data.page.number + 1;
+      this.thePageSize = data.page.size;
+      this.theTotalElements = data.page.totalElements;
+
+    });
+  }
+
+  updatePageSize(event: Event) {
+    const pageSize = +(event.target as HTMLInputElement).value;
+    this.thePageSize = pageSize;
+    this.thePageNumber = 1;
+    this.listProducts();
+  }
+
+  addToCart(theProduct: Product) {
+    console.log(`Adding to cart: ${theProduct.name}, ${theProduct.unitPrice}`);
+
+
+    this.cartService.addToCart(new CartItem(theProduct));
   }
 }
-
-
-
